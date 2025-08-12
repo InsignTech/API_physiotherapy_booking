@@ -71,6 +71,7 @@ const getAllPatients = async (req, res) => {
 
   try {
     const patientDetails = await Patients.find()
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -141,9 +142,7 @@ const searchPatients = async (req, res) => {
 
     if (query && query.trim().length > 0) {
       const searchQuery = query.trim();
-      const orConditions = [
-        { name: { $regex: searchQuery, $options: "i" } }
-      ];
+      const orConditions = [{ name: { $regex: searchQuery, $options: "i" } }];
 
       // Only add phoneNumber search if the query is a number
       if (!isNaN(searchQuery)) {
@@ -161,15 +160,14 @@ const searchPatients = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Patients retrieved successfully",
-      data: patients
+      data: patients,
     });
-
   } catch (error) {
     console.error("Error during searching patients:", error);
     res.status(500).json({
       success: false,
       message: "Error searching patients",
-      error: error.message
+      error: error.message,
     });
   }
 };
