@@ -12,20 +12,21 @@ import {
   deletePatients,
   getDashboardStats,
 } from "../controller/patientController.js";
+import protect from "../middleWare/userMiddleWare.js";
 const app = express.Router();
 
-app.route("/").post(addPatients).get(getAllPatients);
-app.route("/dashboard").get(getDashboardStats);
-app.route("/search").get(getPatients);
+app.route("/").post(protect,addPatients).get(protect,getAllPatients);
+app.route("/dashboard").get(protect,getDashboardStats);
+app.route("/search").get(protect,getPatients);
 app
   .route("/:id")
-  .put(updatePatients)
-  .delete(deletePatients)
-  .get(getAppointment);
+  .put(protect,updatePatients)
+  .delete(protect,deletePatients)
+  .get(protect,getAppointment);
 app
   .route("/appointment/:id")
-  .post(appointmentDetails)
-  .put(updateAppointmentDetails)
-  .get(getAllAppointment)
-  .delete(deleteAppointment);
+  .post(protect,appointmentDetails)
+  .put(protect,updateAppointmentDetails)
+  .get(protect,getAllAppointment)
+  .delete(protect,deleteAppointment);
 export default app;
