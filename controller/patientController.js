@@ -237,7 +237,7 @@ const getAllAppointment = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     // Total Patients
-    console.log("Fetching dashboard stats...");
+
     const totalPatientsPromise = Patients.countDocuments();
 
     // Calculate IST start and end of today, then convert to UTC
