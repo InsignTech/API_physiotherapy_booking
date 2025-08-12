@@ -134,30 +134,45 @@ const getAppointment = async (req, res) => {
   }
 };
 
-const getPatients = async (req, res) => {
+const searchPatients = async (req, res) => {
   try {
-    const { name, phoneNumber } = req.query;
-    if (!name || !phoneNumber) {
-      return res.status(400).json({
-        msg: "Name and phone number are required",
-      });
+    const { query } = req.query;
+    let searchConditions = {};
+
+    if (query && query.trim().length > 0) {
+      const searchQuery = query.trim();
+      const orConditions = [
+        { name: { $regex: searchQuery, $options: "i" } }
+      ];
+
+      // Only add phoneNumber search if the query is a number
+      if (!isNaN(searchQuery)) {
+        orConditions.push({ phoneNumber: Number(searchQuery) });
+      }
+
+      searchConditions = { $or: orConditions };
     }
-    const patientDetails = await Patients.find({
-      name: { $regex: `^${name}$`, $options: "i" },
-      phoneNumber: phoneNumber,
-    })
+
+    const patients = await Patients.find(searchConditions)
+      .sort({ createdAt: -1 })
       .limit(10)
       .lean();
-    `1`;
-    return res.status(200).json({
-      msg: "Patient details fetched successfully",
-      data: patientDetails,
+
+    res.status(200).json({
+      success: true,
+      message: "Patients retrieved successfully",
+      data: patients
     });
+
   } catch (error) {
-    console.error("Error during fetching patients:", error);
+    console.error("Error during searching patients:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error searching patients",
+      error: error.message
+    });
   }
 };
-
 const appointmentDetails = async (req, res) => {
   const { id } = req.params;
   try {
@@ -329,7 +344,7 @@ export {
   deletePatients,
   getAllPatients,
   getAppointment,
-  getPatients,
+  searchPatients,
   appointmentDetails,
   updateAppointmentDetails,
   getAllAppointment,

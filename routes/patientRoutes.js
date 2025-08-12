@@ -3,7 +3,6 @@ import {
   addPatients,
   getAllPatients,
   getAppointment,
-  getPatients,
   appointmentDetails,
   updateAppointmentDetails,
   getAllAppointment,
@@ -11,13 +10,14 @@ import {
   updatePatients,
   deletePatients,
   getDashboardStats,
+  searchPatients,
 } from "../controller/patientController.js";
 import protect from "../middleWare/userMiddleWare.js";
 const app = express.Router();
 
 app.route("/").post(protect,addPatients).get(protect,getAllPatients);
 app.route("/dashboard").get(protect,getDashboardStats);
-app.route("/search").get(protect,getPatients);
+app.route("/search").get(protect,searchPatients);
 app
   .route("/:id")
   .put(protect,updatePatients)
