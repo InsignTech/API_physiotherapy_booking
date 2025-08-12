@@ -6,7 +6,7 @@ var appointmentSchema = new Schema({
   patientId: {
     type: Schema.Types.ObjectId,
     ref: "Patients",
-    // required: true,
+    required: true,
   },
   totalAmount: {
     type: Number,
