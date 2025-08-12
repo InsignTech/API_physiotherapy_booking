@@ -1,8 +1,6 @@
 import User from "../modals/userSchema.js";
 import generateToken from "../utils/generateToken.js";
 
-
-
 const userSignup = async (req, res) => {
   const { phoneNumber } = req.body;
   console.log("data", req.body);

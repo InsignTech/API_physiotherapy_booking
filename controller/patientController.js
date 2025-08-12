@@ -3,22 +3,23 @@ import Appointments from "../modals/appointmentSchema.js";
 
 const addPatients = async (req, res) => {
   const { name, phoneNumber } = req.body;
-  console.log("sdd",req.body)
+  console.log("sdd", req.body);
   try {
     const existPatient = await Patients.findOne({
       phoneNumber,
       name: { $regex: `^${name}$`, $options: "i" },
-    }); console.log("exist",existPatient)
+    });
+    console.log("exist", existPatient);
     if (existPatient) {
       return res.status(400).json({
         msg: "Patient already exist",
       });
-    } 
+    }
     const patientDetails = await Patients.create(req.body);
-    console.log("details",patientDetails)
+    console.log("details", patientDetails);
     return res.status(201).json({
       msg: "Patient details addded successfully",
-      data:patientDetails,
+      data: patientDetails,
     });
   } catch (err) {
     res.status(400).json({
@@ -85,29 +86,27 @@ const getAllPatients = async (req, res) => {
         totalPages: Math.ceil(total / limit),
         totalRecords: total,
         hasNextPage: page < Math.ceil(total / limit),
-        hasPrevPage: page > 1
-      }
+        hasPrevPage: page > 1,
+      },
     });
-
   } catch (error) {
     console.error("Error during fetching patients:", error);
     return res.status(500).json({ msg: "Internal server error" });
   }
 };
 
-
 const getAppointment = async (req, res) => {
   const { id } = req.params;
-  let filter = {}
-  if (id){
-    filter.patientId = id
+  let filter = {};
+  if (id) {
+    filter.patientId = id;
   }
   const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 10; 
+  const limit = parseInt(req.query.limit) || 10;
 
   try {
     const appointments = await Appointments.find(filter)
-      .sort({ appointmentDate: -1 }) 
+      .sort({ appointmentDate: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -126,40 +125,38 @@ const getAppointment = async (req, res) => {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
         totalRecords: total,
-        hasNextPage: page * limit < total
-      }
+        hasNextPage: page * limit < total,
+      },
     });
-
   } catch (error) {
     console.error("Error during fetching appointments", error);
     res.status(500).json({ msg: "Internal server error" });
   }
 };
 
-
-const getPatients = async (req,res) =>{
-  try{
-    const {name,phoneNumber} =req.query
-    if(!name || !phoneNumber){
+const getPatients = async (req, res) => {
+  try {
+    const { name, phoneNumber } = req.query;
+    if (!name || !phoneNumber) {
       return res.status(400).json({
-        msg:"Name and phone number are required"
-      })
+        msg: "Name and phone number are required",
+      });
     }
-     const patientDetails = await Patients.find({
-      name: { $regex: `^${name}$`, $options: 'i' },
-      phoneNumber: phoneNumber
+    const patientDetails = await Patients.find({
+      name: { $regex: `^${name}$`, $options: "i" },
+      phoneNumber: phoneNumber,
     })
       .limit(10)
-      .lean();  `1`
+      .lean();
+    `1`;
     return res.status(200).json({
       msg: "Patient details fetched successfully",
       data: patientDetails,
     });
-  } catch(error){
-    console.error("Error during fetching patients:",error);
-    
+  } catch (error) {
+    console.error("Error during fetching patients:", error);
   }
-}
+};
 
 const appointmentDetails = async (req, res) => {
   const { id } = req.params;
@@ -237,7 +234,6 @@ const getAllAppointment = async (req, res) => {
   }
 };
 
-
 const getDashboardStats = async (req, res) => {
   try {
     // Total Patients
@@ -256,19 +252,26 @@ const getDashboardStats = async (req, res) => {
       istNow.getFullYear(),
       istNow.getMonth(),
       istNow.getDate(),
-      0, 0, 0, 0
+      0,
+      0,
+      0,
+      0
     );
     // End of day in IST
     const istEndOfDay = new Date(
       istNow.getFullYear(),
       istNow.getMonth(),
       istNow.getDate(),
-      23, 59, 59, 999
+      23,
+      59,
+      59,
+      999
     );
 
-  
     // Convert IST start/end to UTC
-    const utcStartOfDay = new Date(istStartOfDay.getTime() - IST_OFFSET * 60000);
+    const utcStartOfDay = new Date(
+      istStartOfDay.getTime() - IST_OFFSET * 60000
+    );
     const utcEndOfDay = new Date(istEndOfDay.getTime() - IST_OFFSET * 60000);
 
     // Today's Appointments in IST
@@ -285,29 +288,27 @@ const getDashboardStats = async (req, res) => {
     const pendingAmountPromise = Appointments.aggregate([
       {
         $match: {
-          $expr: { $lt: ["$paidAmount", "$totalAmount"] }
-        }
+          $expr: { $lt: ["$paidAmount", "$totalAmount"] },
+        },
       },
       {
         $group: {
           _id: null,
-          totalPending: { $sum: { $subtract: ["$totalAmount", "$paidAmount"] } },
+          totalPending: {
+            $sum: { $subtract: ["$totalAmount", "$paidAmount"] },
+          },
         },
       },
     ]);
 
     // Await all promises in parallel
-    const [
-      totalPatients,
-      todaysAppointments,
-      totalRevenue,
-      pendingAmount
-    ] = await Promise.all([
-      totalPatientsPromise,
-      todaysAppointmentsPromise,
-      totalRevenuePromise,
-      pendingAmountPromise
-    ]);
+    const [totalPatients, todaysAppointments, totalRevenue, pendingAmount] =
+      await Promise.all([
+        totalPatientsPromise,
+        todaysAppointmentsPromise,
+        totalRevenuePromise,
+        pendingAmountPromise,
+      ]);
 
     return res.status(200).json({
       msg: "Dashboard stats retrieved successfully",
@@ -322,8 +323,6 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-
-
 export {
   addPatients,
   updatePatients,
@@ -335,5 +334,5 @@ export {
   updateAppointmentDetails,
   getAllAppointment,
   deleteAppointment,
-  getDashboardStats
+  getDashboardStats,
 };
