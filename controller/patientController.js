@@ -238,6 +238,91 @@ const getAllAppointment = async (req, res) => {
 };
 
 
+const getDashboardStats = async (req, res) => {
+  try {
+    // Total Patients
+    console.log("Fetching dashboard stats...");
+    const totalPatientsPromise = Patients.countDocuments();
+
+    // Calculate IST start and end of today, then convert to UTC
+    const now = new Date();
+    // IST offset in minutes (+5:30)
+    const IST_OFFSET = 330;
+    // Current time in IST
+    const istNow = new Date(now.getTime() + IST_OFFSET * 60000);
+
+    // Start of day in IST
+    const istStartOfDay = new Date(
+      istNow.getFullYear(),
+      istNow.getMonth(),
+      istNow.getDate(),
+      0, 0, 0, 0
+    );
+    // End of day in IST
+    const istEndOfDay = new Date(
+      istNow.getFullYear(),
+      istNow.getMonth(),
+      istNow.getDate(),
+      23, 59, 59, 999
+    );
+
+  
+    // Convert IST start/end to UTC
+    const utcStartOfDay = new Date(istStartOfDay.getTime() - IST_OFFSET * 60000);
+    const utcEndOfDay = new Date(istEndOfDay.getTime() - IST_OFFSET * 60000);
+
+    // Today's Appointments in IST
+    const todaysAppointmentsPromise = Appointments.countDocuments({
+      appointmentDate: { $gte: utcStartOfDay, $lte: utcEndOfDay },
+    });
+
+    // Total Revenue
+    const totalRevenuePromise = Appointments.aggregate([
+      { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+    ]);
+
+    // Pending Amount
+    const pendingAmountPromise = Appointments.aggregate([
+      {
+        $match: {
+          $expr: { $lt: ["$paidAmount", "$totalAmount"] }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalPending: { $sum: { $subtract: ["$totalAmount", "$paidAmount"] } },
+        },
+      },
+    ]);
+
+    // Await all promises in parallel
+    const [
+      totalPatients,
+      todaysAppointments,
+      totalRevenue,
+      pendingAmount
+    ] = await Promise.all([
+      totalPatientsPromise,
+      todaysAppointmentsPromise,
+      totalRevenuePromise,
+      pendingAmountPromise
+    ]);
+
+    return res.status(200).json({
+      msg: "Dashboard stats retrieved successfully",
+      totalPatients,
+      todaysAppointments,
+      totalRevenue: totalRevenue[0] ? totalRevenue[0].total : 0,
+      pendingAmount: pendingAmount[0] ? pendingAmount[0].totalPending : 0,
+    });
+  } catch (error) {
+    console.error("Error retrieving dashboard stats:", error);
+    return res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
+
 
 export {
   addPatients,
@@ -250,4 +335,5 @@ export {
   updateAppointmentDetails,
   getAllAppointment,
   deleteAppointment,
+  getDashboardStats
 };
