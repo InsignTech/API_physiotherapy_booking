@@ -67,22 +67,14 @@ const deletePatients = async (req, res) => {
 const getAllPatients = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
-  // const { id } = req.query;
-  // let filter = {}
-  // if (id){
-  //   filter.patientId = id
-  // }
 
   try {
-    const filter = {};
-
-    // Fetch patients for the current page
-    const patientDetails = await Patients.find(filter)
+    const patientDetails = await Patients.find()
       .skip((page - 1) * limit)
       .limit(limit);
 
     // Get total number of matching patients
-    const total = await Patients.countDocuments(filter);
+    const total = await Patients.countDocuments();
 
     // Send paginated response
     return res.status(200).json({
