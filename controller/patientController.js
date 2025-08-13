@@ -250,61 +250,43 @@ const getAllAppointment = async (req, res) => {
 
 const getDashboardStats = async (req, res) => {
   try {
-    // Total Patients
-
     const totalPatientsPromise = Patients.countDocuments();
 
-    // Calculate IST start and end of today, then convert to UTC
+    // --- Start of Corrected Timezone Logic ---
     const now = new Date();
-    // IST offset in minutes (+5:30)
-    const IST_OFFSET = 330;
-    // Current time in IST
+    const IST_OFFSET = 330; 
     const istNow = new Date(now.getTime() + IST_OFFSET * 60000);
 
-    // Start of day in IST
-    const istStartOfDay = new Date(
-      istNow.getFullYear(),
-      istNow.getMonth(),
-      istNow.getDate(),
-      0,
-      0,
-      0,
-      0
-    );
-    // End of day in IST
-    const istEndOfDay = new Date(
-      istNow.getFullYear(),
-      istNow.getMonth(),
-      istNow.getDate(),
-      23,
-      59,
-      59,
-      999
-    );
+    // ✅ FIX: Use getUTC... methods to correctly extract the date parts for IST
+    const istStartOfDay = new Date(Date.UTC(
+      istNow.getUTCFullYear(),
+      istNow.getUTCMonth(),
+      istNow.getUTCDate(),
+      0, 0, 0, 0
+    ));
+    
+    const istEndOfDay = new Date(Date.UTC(
+      istNow.getUTCFullYear(),
+      istNow.getUTCMonth(),
+      istNow.getUTCDate(),
+      23, 59, 59, 999
+    ));
 
-    // Convert IST start/end to UTC
-    const utcStartOfDay = new Date(
-      istStartOfDay.getTime() - IST_OFFSET * 60000
-    );
+    // Convert IST start/end to the correct UTC query range
+    const utcStartOfDay = new Date(istStartOfDay.getTime() - IST_OFFSET * 60000);
     const utcEndOfDay = new Date(istEndOfDay.getTime() - IST_OFFSET * 60000);
+    // --- End of Corrected Timezone Logic ---
 
-    // Today's Appointments in IST
     const todaysAppointmentsPromise = Appointments.countDocuments({
       appointmentDate: { $gte: utcStartOfDay, $lte: utcEndOfDay },
     });
 
-    // Total Revenue
     const totalRevenuePromise = Appointments.aggregate([
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]);
 
-    // Pending Amount
     const pendingAmountPromise = Appointments.aggregate([
-      {
-        $match: {
-          $expr: { $lt: ["$paidAmount", "$totalAmount"] },
-        },
-      },
+      { $match: { $expr: { $lt: ["$paidAmount", "$totalAmount"] } } },
       {
         $group: {
           _id: null,
@@ -315,7 +297,6 @@ const getDashboardStats = async (req, res) => {
       },
     ]);
 
-    // Await all promises in parallel
     const [totalPatients, todaysAppointments, totalRevenue, pendingAmount] =
       await Promise.all([
         totalPatientsPromise,
@@ -336,7 +317,6 @@ const getDashboardStats = async (req, res) => {
     return res.status(500).json({ msg: "Internal server error" });
   }
 };
-
 export {
   addPatients,
   updatePatients,
