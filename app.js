@@ -6,6 +6,8 @@ import patientRoutes from './routes/patientRoutes.js'
 import cors from "cors";
 import jwt from 'jsonwebtoken'; 
 
+const app = express();
+
 const whitelist = [
   "http://localhost:5173",
   "https://physio.insigntechsolutions.com"
@@ -27,7 +29,6 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions)); // Allow preflight
 
-const app = express();
 app.use(cors(corsOptions));
 
 app.use(express.json());
