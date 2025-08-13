@@ -6,15 +6,26 @@ import patientRoutes from './routes/patientRoutes.js'
 import cors from "cors";
 import jwt from 'jsonwebtoken'; 
 
+const whitelist = [
+  "http://localhost:5173",
+  "https://physio.insigntechsolutions.com"
+];
+
 const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "https://physio.insigntechsolutions.com"
-  ],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl)
+    if (!origin || whitelist.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
 };
 
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // Allow preflight
 
 const app = express();
 app.use(cors(corsOptions));
