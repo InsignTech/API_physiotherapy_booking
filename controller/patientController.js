@@ -115,7 +115,7 @@ if (id) filter.patientId = id;
       .sort({ appointmentDate: -1 }) // newest first
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate("patientId", "name");
+      .populate("patientId", "name age gender phoneNumber address email");
 
       console.log("appointmetsn",appointments)
 
