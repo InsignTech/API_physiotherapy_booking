@@ -3,20 +3,17 @@ import Appointments from "../modals/appointmentSchema.js";
 
 const addPatients = async (req, res) => {
   const { name, phoneNumber } = req.body;
-  console.log("sdd", req.body);
   try {
     const existPatient = await Patients.findOne({
       phoneNumber,
       name: { $regex: `^${name}$`, $options: "i" },
     });
-    console.log("exist", existPatient);
     if (existPatient) {
       return res.status(400).json({
         msg: "Patient already exist",
       });
     }
     const patientDetails = await Patients.create(req.body);
-    console.log("details", patientDetails);
     return res.status(201).json({
       msg: "Patient details addded successfully",
       data: patientDetails,
@@ -96,29 +93,34 @@ const getAllPatients = async (req, res) => {
 };
 
 const getAppointment = async (req, res) => {
-  const { id } = req.params;
+  const { id, date } = req.query;
   let filter = {};
-  if (id) {
-    filter.patientId = id;
+if (id) filter.patientId = id;
+  if (date) {
+    // Match only appointments for that specific date
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    filter.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
   }
+
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
 
   try {
     const appointments = await Appointments.find(filter)
-      .sort({ appointmentDate: -1 })
+      .sort({ appointmentDate: -1 }) // newest first
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit)
+      .populate("patientId", "name");
 
-    if (!appointments || appointments.length === 0) {
-      return res
-        .status(404)
-        .json({ msg: "No appointments found for this patient ID" });
-    }
+      console.log("appointmetsn",appointments)
 
-    const total = await Appointments.countDocuments({ patientId: id });
+    const total = await Appointments.countDocuments(filter);
 
-    return res.status(200).json({
+    res.status(200).json({
       msg: "Appointments fetched successfully",
       data: appointments,
       pagination: {
@@ -129,42 +131,56 @@ const getAppointment = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error during fetching appointments", error);
+    console.error("Error fetching appointments", error);
     res.status(500).json({ msg: "Internal server error" });
   }
 };
 
+
 const getPatients = async (req, res) => {
   try {
-    const { name, phoneNumber } = req.query;
-    if (!name || !phoneNumber) {
+    const value = req.query.query;
+
+    if (!value) {
       return res.status(400).json({
-        msg: "Name and phone number are required",
+        msg: "A search value is required.",
       });
     }
-    const patientDetails = await Patients.find({
-      name: { $regex: `^${name}$`, $options: "i" },
-      phoneNumber: phoneNumber,
-    })
+
+    // 1. Start with an array of conditions for the $or operator.
+    //    The name is always included in the search.
+    const searchConditions = [
+      { name: { $regex: value, $options: "i" } },
+    ];
+
+    // 2. Check if the input value is a valid number.
+    //    If it is, add the phoneNumber condition to the array.
+    if (!isNaN(value) && isFinite(value)) {
+      searchConditions.push({ phoneNumber: Number(value) });
+    }
+
+    // 3. Use the dynamic array of conditions in the find query.
+    const patientDetails = await Patients.find({ $or: searchConditions })
       .limit(10)
       .lean();
-    `1`;
+
     return res.status(200).json({
       msg: "Patient details fetched successfully",
       data: patientDetails,
     });
+    
   } catch (error) {
     console.error("Error during fetching patients:", error);
+    // Send a generic error response to the client
+    res.status(500).json({ msg: "An error occurred while searching for patients." });
   }
 };
 
 const appointmentDetails = async (req, res) => {
-  const { id } = req.params;
   try {
-    const newAppointment = await Appointments.create({
-      patientId: id,
-      ...req.body,
-    });
+    const newAppointment = await Appointments.create(
+      req.body,
+    );
     return res.status(201).json({
       msg: "Appointment created successfully",
       data: newAppointment,

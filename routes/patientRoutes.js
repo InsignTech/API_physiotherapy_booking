@@ -22,10 +22,10 @@ app
   .route("/:id")
   .put(protect,updatePatients)
   .delete(protect,deletePatients)
-  .get(protect,getAppointment);
+app.route('/getAllAppointmnets').get(protect,getAppointment).post(protect,appointmentDetails)
+  
 app
-  .route("/appointment/:id")
-  .post(protect,appointmentDetails)
+  .route("/appointments/:id")
   .put(protect,updateAppointmentDetails)
   .get(protect,getAllAppointment)
   .delete(protect,deleteAppointment);
