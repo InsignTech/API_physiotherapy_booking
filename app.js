@@ -8,31 +8,20 @@ import jwt from 'jsonwebtoken';
 
 const app = express();
 
-const whitelist = [
-  "http://localhost:5173",
-  "https://physio.insigntechsolutions.com"
-];
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
-    if (!origin || whitelist.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+ origin: [
+    "http://localhost:5173",
+    "https://physio.insigntechsolutions.com"
+  ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // Allow preflight
-
-app.use(cors(corsOptions));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 
 const PORT = process.env.PORT || 7000;
 app.get("/", (req, res) => {
