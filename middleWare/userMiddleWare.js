@@ -4,15 +4,15 @@ import jwt from 'jsonwebtoken'
 
 const protect = AsyncHandler(async (req, res, next) => {
   try {
-    let token = req.headers.token
-    let decoded = jwt.verify(token,process.env.JWT_SECRET_KEY)
-    let isUser = await User.findOne({ _id : decoded.id })
-    if ( !isUser ) {
-      res.status(401).json({ msg: 'No user found..' })
-      throw new Error('Not Autherized')
-    } else {
+    // let token = req.headers.token
+    // let decoded = jwt.verify(token,process.env.JWT_SECRET_KEY)
+    // let isUser = await User.findOne({ _id : decoded.id })
+    // if ( !isUser ) {
+    //   res.status(401).json({ msg: 'No user found..' })
+    //   throw new Error('Not Autherized')
+    // } else {
       next();
-    }
+    // }
 
   } catch (error) {
 

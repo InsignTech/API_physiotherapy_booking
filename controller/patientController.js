@@ -68,6 +68,7 @@ const getAllPatients = async (req, res) => {
 
   try {
     const patientDetails = await Patients.find()
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
 
@@ -136,46 +137,43 @@ if (id) filter.patientId = id;
   }
 };
 
-
-const getPatients = async (req, res) => {
+const searchPatients = async (req, res) => {
   try {
-    const value = req.query.query;
+    const { query } = req.query;
+    let searchConditions = {};
 
-    if (!value) {
-      return res.status(400).json({
-        msg: "A search value is required.",
-      });
+    if (query && query.trim().length > 0) {
+      const searchQuery = query.trim();
+      const orConditions = [{ name: { $regex: searchQuery, $options: "i" } }];
+
+      // Only add phoneNumber search if the query is a number
+      if (!isNaN(searchQuery)) {
+        orConditions.push({ phoneNumber: Number(searchQuery) });
+      }
+
+      searchConditions = { $or: orConditions };
     }
 
-    // 1. Start with an array of conditions for the $or operator.
-    //    The name is always included in the search.
-    const searchConditions = [
-      { name: { $regex: value, $options: "i" } },
-    ];
-
-    // 2. Check if the input value is a valid number.
-    //    If it is, add the phoneNumber condition to the array.
-    if (!isNaN(value) && isFinite(value)) {
-      searchConditions.push({ phoneNumber: Number(value) });
-    }
-
-    // 3. Use the dynamic array of conditions in the find query.
-    const patientDetails = await Patients.find({ $or: searchConditions })
+    const patients = await Patients.find(searchConditions)
+      .sort({ createdAt: -1 })
       .limit(10)
       .lean();
 
-    return res.status(200).json({
-      msg: "Patient details fetched successfully",
-      data: patientDetails,
+    res.status(200).json({
+      success: true,
+      message: "Patients retrieved successfully",
+      data: patients,
     });
     
   } catch (error) {
-    console.error("Error during fetching patients:", error);
-    // Send a generic error response to the client
-    res.status(500).json({ msg: "An error occurred while searching for patients." });
+    console.error("Error during searching patients:", error);
+    res.status(500).json({
+      success: false,
+      message: "Error searching patients",
+      error: error.message,
+    });
   }
 };
-
 const appointmentDetails = async (req, res) => {
   try {
     const newAppointment = await Appointments.create(
@@ -253,7 +251,7 @@ const getAllAppointment = async (req, res) => {
 const getDashboardStats = async (req, res) => {
   try {
     // Total Patients
-    console.log("Fetching dashboard stats...");
+
     const totalPatientsPromise = Patients.countDocuments();
 
     // Calculate IST start and end of today, then convert to UTC
@@ -345,7 +343,7 @@ export {
   deletePatients,
   getAllPatients,
   getAppointment,
-  getPatients,
+  searchPatients,
   appointmentDetails,
   updateAppointmentDetails,
   getAllAppointment,
