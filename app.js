@@ -7,10 +7,14 @@ import cors from "cors";
 import jwt from 'jsonwebtoken'; 
 
 const corsOptions = {
-  origin: "http://localhost:5173",
+  origin: [
+    "http://localhost:5173",
+    "https://physio.insigntechsolutions.com"
+  ],
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
   credentials: true,
 };
+
 
 const app = express();
 app.use(cors(corsOptions));
