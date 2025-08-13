@@ -93,18 +93,68 @@ const getAllPatients = async (req, res) => {
   }
 };
 
-const getAppointment = async (req, res) => {
-  const { id, date } = req.query;
-  let filter = {};
-if (id) filter.patientId = id;
-  if (date) {
-    // Match only appointments for that specific date
-    const startOfDay = new Date(date);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(date);
-    endOfDay.setHours(23, 59, 59, 999);
+// const getAppointment = async (req, res) => {
+//   const { id, date } = req.query;
+//   let filter = {};
+// if (id) filter.patientId = id;
+//   if (date) {
+//     // Match only appointments for that specific date
+//     const startOfDay = new Date(date);
+//     startOfDay.setHours(0, 0, 0, 0);
+//     const endOfDay = new Date(date);
+//     endOfDay.setHours(23, 59, 59, 999);
 
-    filter.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
+//     filter.appointmentDate = { $gte: startOfDay, $lte: endOfDay };
+//   }
+
+//   const page = parseInt(req.query.page) || 1;
+//   const limit = parseInt(req.query.limit) || 10;
+
+//   try {
+//     const appointments = await Appointments.find(filter)
+//       .sort({ appointmentDate: -1 }) // newest first
+//       .skip((page - 1) * limit)
+//       .limit(limit)
+//       .populate("patientId", "name age gender phoneNumber address email");
+
+//       console.log("appointmetsn",appointments)
+
+//     const total = await Appointments.countDocuments(filter);
+
+//     res.status(200).json({
+//       msg: "Appointments fetched successfully",
+//       data: appointments,
+//       pagination: {
+//         currentPage: page,
+//         totalPages: Math.ceil(total / limit),
+//         totalRecords: total,
+//         hasNextPage: page * limit < total,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Error fetching appointments", error);
+//     res.status(500).json({ msg: "Internal server error" });
+//   }
+// };
+
+const getAppointment = async (req, res) => {
+  const { id, startDate, endDate } = req.query;
+  let filter = {};
+
+  if (id) filter.patientId = id;
+
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    filter.appointmentDate = { $gte: start, $lte: end };
+  } else if (startDate && !endDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(startDate);
+    end.setHours(23, 59, 59, 999);
+    filter.appointmentDate = { $gte: start, $lte: end };
   }
 
   const page = parseInt(req.query.page) || 1;
@@ -112,18 +162,24 @@ if (id) filter.patientId = id;
 
   try {
     const appointments = await Appointments.find(filter)
-      .sort({ appointmentDate: -1 }) // newest first
+      .sort({ appointmentDate: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate("patientId", "name age gender phoneNumber address email");
+      .populate("patientId", "name age gender phoneNumber address email")
+      .lean(); // return plain JS objects
 
-      console.log("appointmetsn",appointments)
+    // Convert UTC to IST (+5:30)
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000; 
+    const appointmentsIST = appointments.map(app => ({
+      ...app,
+      appointmentDateIST: new Date(app.appointmentDate.getTime() + IST_OFFSET)
+    }));
 
     const total = await Appointments.countDocuments(filter);
 
     res.status(200).json({
       msg: "Appointments fetched successfully",
-      data: appointments,
+      data: appointmentsIST,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -136,6 +192,7 @@ if (id) filter.patientId = id;
     res.status(500).json({ msg: "Internal server error" });
   }
 };
+
 
 const searchPatients = async (req, res) => {
   try {
@@ -317,6 +374,7 @@ const getDashboardStats = async (req, res) => {
     return res.status(500).json({ msg: "Internal server error" });
   }
 };
+
 export {
   addPatients,
   updatePatients,
