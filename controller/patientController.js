@@ -202,8 +202,6 @@ const getAppointment = async (req, res) => {
 
 const searchPatients = async (req, res) => {
   try {
-    console.log("wnwdjs", req.query);
-
     const { query } = req.query;
 
     let searchConditions = {};
@@ -265,7 +263,10 @@ const appointmentDetails = async (req, res) => {
     const paid = parseFloat(paidAmount) || 0;
 
     // New previous balance calculation
-    const updatedPreviousBalance = ((prevBalance || 0) +(total || 0)) - (paid);
+    const updatedPreviousBalance =
+  (Number(prevBalance || 0) + Number(total || 0)) - Number(paid || 0);
+
+
 
     const newAppointment = await Appointments.create({
       patientId,
