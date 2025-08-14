@@ -71,6 +71,7 @@ const getAllPatients = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
+    console.log("previous", patientDetails);
 
     // Get total number of matching patients
     const total = await Patients.countDocuments();
@@ -163,44 +164,17 @@ const getAppointment = async (req, res) => {
   try {
     // Step 1: Get paginated appointments
     const appointments = await Appointments.find(filter)
-      .sort({ appointmentDate: -1 })
+      .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .populate("patientId", "name age gender phoneNumber address email")
+      .populate(
+        "patientId",
+        "name age gender phoneNumber address email previousBalance"
+      )
       .lean();
 
-    // Step 2: For each appointment's patientId, calculate and update their pending balance
-    for (let appt of appointments) {
-      if (appt.patientId?._id) {
-        const balances = await Appointments.aggregate([
-          { $match: { patientId: appt.patientId._id } },
-          {
-            $group: {
-              _id: "$patientId",
-              totalPending: {
-                $sum: { $subtract: ["$totalAmount", "$paidAmount"] },
-              },
-            },
-          },
-        ]);
+    console.log("appointmnets", appointments);
 
-        const pendingBalance =
-          balances.length > 0 ? balances[0].totalPending : 0;
-        appt.patientPendingBalance = pendingBalance;
-
-        // Update the patient document with the pending balance
-        await Appointments.findByIdAndUpdate(
-          appt._id, // appointment _id
-          {
-            previousBalance: pendingBalance,
-            lastBalanceUpdate: new Date(),
-          },
-          { upsert: false }
-        );
-      } else {
-        appt.patientPendingBalance = 0;
-      }
-    }
     // Convert UTC to IST (+5:30)
     const IST_OFFSET = 5.5 * 60 * 60 * 1000;
     const appointmentsIST = appointments.map((app) => ({
@@ -251,7 +225,7 @@ const searchPatients = async (req, res) => {
       .limit(10)
 
       .lean();
-      for (let patient of patients) {
+    for (let patient of patients) {
       const latestAppointment = await Appointments.findOne(
         { patientId: patient._id },
         { previousBalance: 1 },
@@ -276,7 +250,32 @@ const searchPatients = async (req, res) => {
 };
 const appointmentDetails = async (req, res) => {
   try {
-    const newAppointment = await Appointments.create(req.body);
+    const { patientId, totalAmount, paidAmount, appointmentDate, notes } =
+      req.body;
+
+    // Find patient’s latest appointment to get their previous balance
+    const lastAppointment = await Appointments.findOne({ patientId }).sort({
+      appointmentDate: -1,
+    });
+
+    const prevBalance = lastAppointment?.previousBalance || 0;
+
+    // Parse amounts safely
+    const total = parseFloat(totalAmount) || 0;
+    const paid = parseFloat(paidAmount) || 0;
+
+    // New previous balance calculation
+    const updatedPreviousBalance = ((prevBalance || 0) +(total || 0)) - (paid);
+
+    const newAppointment = await Appointments.create({
+      patientId,
+      totalAmount: total,
+      paidAmount: paid,
+      appointmentDate,
+      notes,
+      previousBalance: updatedPreviousBalance,
+    });
+
     return res.status(201).json({
       msg: "Appointment created successfully",
       data: newAppointment,
@@ -292,27 +291,44 @@ const appointmentDetails = async (req, res) => {
 
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
-  const { paidAmount, appointmentDate } = req.body;
+  const { totalAmount, paidAmount, appointmentDate } = req.body;
+
   try {
     const existingAppointment = await Appointments.findById(id);
     if (!existingAppointment) {
-      return res.status(404).json({ msg: "no appointment found" });
+      return res.status(404).json({ msg: "No appointment found" });
     }
-    const updateUser = await Appointments.findByIdAndUpdate(
+
+    // Parse amounts safely
+    const total = parseFloat(totalAmount) || 0;
+    const paid = parseFloat(paidAmount) || 0;
+
+    // Calculate updated previousBalance
+    const updatedPreviousBalance =
+      (existingAppointment.previousBalance || 0) + (total||0) - (paid);
+
+    console.log("balance", updatedPreviousBalance);
+
+    const updatedAppointment = await Appointments.findByIdAndUpdate(
       id,
       {
-        paidAmount,
+        totalAmount: total,
+        paidAmount: paid,
         appointmentDate,
+        previousBalance: updatedPreviousBalance,
       },
       { new: true }
     );
-    return res.status(201).json({
+
+    return res.status(200).json({
       msg: "Patient appointment details updated successfully",
-      data: updateUser,
+      data: updatedAppointment,
     });
   } catch (error) {
     console.error("Error during update appointment:", error);
-    return res.status(400).json({ msg: "Error updating appointment", error });
+    return res
+      .status(400)
+      .json({ msg: "Error updating appointment", error: error.message });
   }
 };
 

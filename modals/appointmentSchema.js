@@ -11,7 +11,7 @@ var appointmentSchema = new Schema(
     },
     totalAmount: {
       type: Number,
-      required: true,
+      default:0
     },
     paidAmount: {
       type: Number,
