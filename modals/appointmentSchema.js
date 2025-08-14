@@ -24,6 +24,10 @@ var appointmentSchema = new Schema(
     notes: {
       type: String,
     },
+    previousBalance:{
+      type:Number,
+      default:0
+    }
   },
   { timestamps: true }
 );

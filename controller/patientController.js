@@ -161,18 +161,51 @@ const getAppointment = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
 
   try {
+    // Step 1: Get paginated appointments
     const appointments = await Appointments.find(filter)
       .sort({ appointmentDate: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .populate("patientId", "name age gender phoneNumber address email")
-      .lean(); // return plain JS objects
+      .lean();
 
+    // Step 2: For each appointment's patientId, calculate and update their pending balance
+    for (let appt of appointments) {
+      if (appt.patientId?._id) {
+        const balances = await Appointments.aggregate([
+          { $match: { patientId: appt.patientId._id } },
+          {
+            $group: {
+              _id: "$patientId",
+              totalPending: {
+                $sum: { $subtract: ["$totalAmount", "$paidAmount"] },
+              },
+            },
+          },
+        ]);
+
+        const pendingBalance =
+          balances.length > 0 ? balances[0].totalPending : 0;
+        appt.patientPendingBalance = pendingBalance;
+
+        // Update the patient document with the pending balance
+        await Appointments.findByIdAndUpdate(
+          appt._id, // appointment _id
+          {
+            previousBalance: pendingBalance,
+            lastBalanceUpdate: new Date(),
+          },
+          { upsert: false }
+        );
+      } else {
+        appt.patientPendingBalance = 0;
+      }
+    }
     // Convert UTC to IST (+5:30)
-    const IST_OFFSET = 5.5 * 60 * 60 * 1000; 
-    const appointmentsIST = appointments.map(app => ({
+    const IST_OFFSET = 5.5 * 60 * 60 * 1000;
+    const appointmentsIST = appointments.map((app) => ({
       ...app,
-      appointmentDateIST: new Date(app.appointmentDate.getTime() + IST_OFFSET)
+      appointmentDateIST: new Date(app.appointmentDate.getTime() + IST_OFFSET),
     }));
 
     const total = await Appointments.countDocuments(filter);
@@ -193,10 +226,12 @@ const getAppointment = async (req, res) => {
   }
 };
 
-
 const searchPatients = async (req, res) => {
   try {
+    console.log("wnwdjs", req.query);
+
     const { query } = req.query;
+
     let searchConditions = {};
 
     if (query && query.trim().length > 0) {
@@ -214,16 +249,24 @@ const searchPatients = async (req, res) => {
     const patients = await Patients.find(searchConditions)
       .sort({ createdAt: -1 })
       .limit(10)
+
       .lean();
+      for (let patient of patients) {
+      const latestAppointment = await Appointments.findOne(
+        { patientId: patient._id },
+        { previousBalance: 1 },
+        { sort: { lastBalanceUpdate: -1 } }
+      );
+
+      patient.pendingBalance = latestAppointment?.previousBalance || 0;
+    }
 
     res.status(200).json({
       success: true,
       message: "Patients retrieved successfully",
       data: patients,
     });
-    
   } catch (error) {
-    console.error("Error during searching patients:", error);
     res.status(500).json({
       success: false,
       message: "Error searching patients",
@@ -233,9 +276,7 @@ const searchPatients = async (req, res) => {
 };
 const appointmentDetails = async (req, res) => {
   try {
-    const newAppointment = await Appointments.create(
-      req.body,
-    );
+    const newAppointment = await Appointments.create(req.body);
     return res.status(201).json({
       msg: "Appointment created successfully",
       data: newAppointment,
@@ -311,26 +352,38 @@ const getDashboardStats = async (req, res) => {
 
     // --- Start of Corrected Timezone Logic ---
     const now = new Date();
-    const IST_OFFSET = 330; 
+    const IST_OFFSET = 330;
     const istNow = new Date(now.getTime() + IST_OFFSET * 60000);
 
     // ✅ FIX: Use getUTC... methods to correctly extract the date parts for IST
-    const istStartOfDay = new Date(Date.UTC(
-      istNow.getUTCFullYear(),
-      istNow.getUTCMonth(),
-      istNow.getUTCDate(),
-      0, 0, 0, 0
-    ));
-    
-    const istEndOfDay = new Date(Date.UTC(
-      istNow.getUTCFullYear(),
-      istNow.getUTCMonth(),
-      istNow.getUTCDate(),
-      23, 59, 59, 999
-    ));
+    const istStartOfDay = new Date(
+      Date.UTC(
+        istNow.getUTCFullYear(),
+        istNow.getUTCMonth(),
+        istNow.getUTCDate(),
+        0,
+        0,
+        0,
+        0
+      )
+    );
+
+    const istEndOfDay = new Date(
+      Date.UTC(
+        istNow.getUTCFullYear(),
+        istNow.getUTCMonth(),
+        istNow.getUTCDate(),
+        23,
+        59,
+        59,
+        999
+      )
+    );
 
     // Convert IST start/end to the correct UTC query range
-    const utcStartOfDay = new Date(istStartOfDay.getTime() - IST_OFFSET * 60000);
+    const utcStartOfDay = new Date(
+      istStartOfDay.getTime() - IST_OFFSET * 60000
+    );
     const utcEndOfDay = new Date(istEndOfDay.getTime() - IST_OFFSET * 60000);
     // --- End of Corrected Timezone Logic ---
 

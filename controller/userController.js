@@ -24,9 +24,9 @@ const userSignup = async (req, res) => {
   }
 };
 const userLogin = async (req, res) => {
-  const { email, password } = req.body;
+  const { userName, password } = req.body;
   try {
-    const existUser = await User.findOne({ email });
+    const existUser = await User.findOne({ userName });
     if (!existUser) {
       res.status(400).json({
         msg: "user not found",
