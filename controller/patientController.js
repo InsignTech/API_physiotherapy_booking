@@ -291,7 +291,7 @@ const appointmentDetails = async (req, res) => {
 
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
-  const { totalAmount, paidAmount, appointmentDate } = req.body;
+  const { totalAmount, paidAmount, appointmentDate,notes } = req.body;
 
   try {
     const existingAppointment = await Appointments.findById(id);
@@ -316,6 +316,7 @@ const updateAppointmentDetails = async (req, res) => {
         paidAmount: paid,
         appointmentDate,
         previousBalance: updatedPreviousBalance,
+        notes
       },
       { new: true }
     );
