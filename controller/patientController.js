@@ -62,6 +62,37 @@ const deletePatients = async (req, res) => {
   }
 };
 
+const getPatientById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const patient = await Patients.findById(id).lean();
+
+    if (!patient) {
+      return res.status(404).json({ msg: "Patient not found" });
+    }
+
+    // Count total appointments for this patient
+    const totalAppointments = await Appointments.countDocuments({ patientId: id });
+
+    // Get latest appointment for previousBalance
+    const latestAppointment = await Appointments.findOne({ patientId: id })
+      .sort({ appointmentDate: -1, createdAt: -1 });
+
+    return res.status(200).json({
+      msg: "Patient fetched successfully",
+      data: {
+        ...patient,
+        totalAppointments,
+        previousBalance: latestAppointment?.previousBalance || 0,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching patient by ID:", error);
+    return res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
 const getAllPatients = async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
@@ -70,8 +101,25 @@ const getAllPatients = async (req, res) => {
     const patientDetails = await Patients.find()
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit);
+      .limit(limit).lean();
     console.log("previous", patientDetails);
+
+       const enhancedPatients = await Promise.all(
+      patientDetails.map(async (patient) => {
+        // Count total appointments
+        const totalAppointments = await Appointments.countDocuments({ patientId: patient._id });
+
+        // Get latest appointment for previousBalance
+        const latestAppointment = await Appointments.findOne({ patientId: patient._id })
+          .sort({ appointmentDate: -1, createdAt: -1 });
+console.log(patient)
+        return {
+          ...patient,
+          totalAppointments,
+          previousBalance: latestAppointment?.previousBalance || 0,
+        };
+      })
+    );
 
     // Get total number of matching patients
     const total = await Patients.countDocuments();
@@ -79,7 +127,7 @@ const getAllPatients = async (req, res) => {
     // Send paginated response
     return res.status(200).json({
       msg: "Patients fetched successfully",
-      data: patientDetails,
+      data: enhancedPatients,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -253,7 +301,7 @@ const appointmentDetails = async (req, res) => {
 
     // Find patient’s latest appointment to get their previous balance
     const lastAppointment = await Appointments.findOne({ patientId }).sort({
-      appointmentDate: -1,
+      appointmentDate: -1, createdAt: -1 
     });
 
     const prevBalance = lastAppointment?.previousBalance || 0;
@@ -412,16 +460,22 @@ const getDashboardStats = async (req, res) => {
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]);
 
-    const pendingAmountPromise = Appointments.aggregate([
-      { $match: { $expr: { $lt: ["$paidAmount", "$totalAmount"] } } },
+        const pendingAmountPromise = Appointments.aggregate([
+      {
+        $sort: { patientId: 1, appointmentDate: -1, createdAt: -1 }
+      },
+      {
+        $group: {
+          _id: "$patientId",
+          previousBalance: { $first: "$previousBalance" }
+        }
+      },
       {
         $group: {
           _id: null,
-          totalPending: {
-            $sum: { $subtract: ["$totalAmount", "$paidAmount"] },
-          },
-        },
-      },
+          totalPending: { $sum: "$previousBalance" }
+        }
+      }
     ]);
 
     const [totalPatients, todaysAppointments, totalRevenue, pendingAmount] =
@@ -446,6 +500,7 @@ const getDashboardStats = async (req, res) => {
 };
 
 export {
+  getPatientById,
   addPatients,
   updatePatients,
   deletePatients,
