@@ -73,11 +73,14 @@ const getPatientById = async (req, res) => {
     }
 
     // Count total appointments for this patient
-    const totalAppointments = await Appointments.countDocuments({ patientId: id });
+    const totalAppointments = await Appointments.countDocuments({
+      patientId: id,
+    });
 
     // Get latest appointment for previousBalance
-    const latestAppointment = await Appointments.findOne({ patientId: id })
-      .sort({ appointmentDate: -1, createdAt: -1 });
+    const latestAppointment = await Appointments.findOne({
+      patientId: id,
+    }).sort({ appointmentDate: -1, createdAt: -1 });
 
     return res.status(200).json({
       msg: "Patient fetched successfully",
@@ -99,20 +102,24 @@ const getAllPatients = async (req, res) => {
 
   try {
     const patientDetails = await Patients.find()
-      .sort({ createdAt: -1 })
+      .sort({ appointmentDate: -1, createdAt: -1 })
       .skip((page - 1) * limit)
-      .limit(limit).lean();
+      .limit(limit)
+      .lean();
     console.log("previous", patientDetails);
 
-       const enhancedPatients = await Promise.all(
+    const enhancedPatients = await Promise.all(
       patientDetails.map(async (patient) => {
         // Count total appointments
-        const totalAppointments = await Appointments.countDocuments({ patientId: patient._id });
+        const totalAppointments = await Appointments.countDocuments({
+          patientId: patient._id,
+        });
 
         // Get latest appointment for previousBalance
-        const latestAppointment = await Appointments.findOne({ patientId: patient._id })
-          .sort({ appointmentDate: -1, createdAt: -1 });
-console.log(patient)
+        const latestAppointment = await Appointments.findOne({
+          patientId: patient._id,
+        }).sort({ appointmentDate: -1, createdAt: -1 });
+        console.log(patient);
         return {
           ...patient,
           totalAppointments,
@@ -212,7 +219,7 @@ const getAppointment = async (req, res) => {
   try {
     // Step 1: Get paginated appointments
     const appointments = await Appointments.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ appointmentDate: -1, createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .populate(
@@ -256,18 +263,18 @@ const searchPatients = async (req, res) => {
 
     if (query && query.trim().length > 0) {
       const searchQuery = query.trim();
-      const orConditions = [{ name: { $regex: searchQuery, $options: "i" } }];
-
-      // Only add phoneNumber search if the query is a number
-      if (!isNaN(searchQuery)) {
-        orConditions.push({ phoneNumber: Number(searchQuery) });
-      }
+      const orConditions = [
+        {
+          name: { $regex: searchQuery, $options: "i" },
+        },
+        { phoneNumber: { $regex: searchQuery, $options: "i" } },
+      ];
 
       searchConditions = { $or: orConditions };
     }
 
     const patients = await Patients.find(searchConditions)
-      .sort({ createdAt: -1 })
+      .sort({ appointmentDate: -1, createdAt: -1 })
       .limit(10)
 
       .lean();
@@ -275,12 +282,16 @@ const searchPatients = async (req, res) => {
       const latestAppointment = await Appointments.findOne(
         { patientId: patient._id },
         { previousBalance: 1 },
-        { sort: { lastBalanceUpdate: -1 } }
-      );
+        { sort: { appointmentDate: -1, createdAt: -1 } }
+      )
 
-      patient.pendingBalance = latestAppointment?.previousBalance || 0;
+      patient.previousBalance = latestAppointment?.previousBalance || 0;
+      const totalAppointments = await Appointments.countDocuments({
+        patientId: patient._id,
+      });
+      patient.totalAppointments = totalAppointments;
     }
-
+console.log("patients....",patients)
     res.status(200).json({
       success: true,
       message: "Patients retrieved successfully",
@@ -301,7 +312,8 @@ const appointmentDetails = async (req, res) => {
 
     // Find patient’s latest appointment to get their previous balance
     const lastAppointment = await Appointments.findOne({ patientId }).sort({
-      appointmentDate: -1, createdAt: -1 
+      appointmentDate: -1,
+      createdAt: -1,
     });
 
     const prevBalance = lastAppointment?.previousBalance || 0;
@@ -312,9 +324,7 @@ const appointmentDetails = async (req, res) => {
 
     // New previous balance calculation
     const updatedPreviousBalance =
-  (Number(prevBalance || 0) + Number(total || 0)) - Number(paid || 0);
-
-
+      Number(prevBalance || 0) + Number(total || 0) - Number(paid || 0);
 
     const newAppointment = await Appointments.create({
       patientId,
@@ -340,7 +350,7 @@ const appointmentDetails = async (req, res) => {
 
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
-  const { totalAmount, paidAmount, appointmentDate,notes } = req.body;
+  const { totalAmount, paidAmount, appointmentDate, notes } = req.body;
 
   try {
     const existingAppointment = await Appointments.findById(id);
@@ -354,7 +364,7 @@ const updateAppointmentDetails = async (req, res) => {
 
     // Calculate updated previousBalance
     const updatedPreviousBalance =
-      (existingAppointment.previousBalance || 0) + (total||0) - (paid);
+      (existingAppointment.previousBalance || 0) + (total || 0) - paid;
 
     console.log("balance", updatedPreviousBalance);
 
@@ -365,7 +375,7 @@ const updateAppointmentDetails = async (req, res) => {
         paidAmount: paid,
         appointmentDate,
         previousBalance: updatedPreviousBalance,
-        notes
+        notes,
       },
       { new: true }
     );
@@ -461,22 +471,22 @@ const getDashboardStats = async (req, res) => {
       { $group: { _id: null, total: { $sum: "$totalAmount" } } },
     ]);
 
-        const pendingAmountPromise = Appointments.aggregate([
+    const pendingAmountPromise = Appointments.aggregate([
       {
-        $sort: { patientId: 1, appointmentDate: -1, createdAt: -1 }
+        $sort: { patientId: 1, appointmentDate: -1, createdAt: -1 },
       },
       {
         $group: {
           _id: "$patientId",
-          previousBalance: { $first: "$previousBalance" }
-        }
+          previousBalance: { $first: "$previousBalance" },
+        },
       },
       {
         $group: {
           _id: null,
-          totalPending: { $sum: "$previousBalance" }
-        }
-      }
+          totalPending: { $sum: "$previousBalance" },
+        },
+      },
     ]);
 
     const [totalPatients, todaysAppointments, totalRevenue, pendingAmount] =
