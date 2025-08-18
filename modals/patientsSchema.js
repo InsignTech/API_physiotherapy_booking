@@ -18,7 +18,6 @@ var patientSchema = new Schema(
     },
     address: {
       type: String,
-      required: true,
     },
     phoneNumber: {
       type: String,
