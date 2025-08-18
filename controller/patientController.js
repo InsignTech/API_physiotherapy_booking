@@ -323,8 +323,13 @@ const appointmentDetails = async (req, res) => {
     const paid = parseFloat(paidAmount) || 0;
 
     // New previous balance calculation
-    const updatedPreviousBalance =
+    let updatedPreviousBalance =
       Number(prevBalance || 0) + Number(total || 0) - Number(paid || 0);
+
+      if(updatedPreviousBalance < 0){
+        updatedPreviousBalance = 0
+
+      }
 
     const newAppointment = await Appointments.create({
       patientId,
