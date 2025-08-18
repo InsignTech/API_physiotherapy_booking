@@ -368,8 +368,12 @@ const updateAppointmentDetails = async (req, res) => {
     const paid = parseFloat(paidAmount) || 0;
 
     // Calculate updated previousBalance
-    const updatedPreviousBalance =
+    let updatedPreviousBalance =
       (existingAppointment.previousBalance || 0) + (total || 0) - paid;
+      if(updatedPreviousBalance < 0){
+        updatedPreviousBalance = 0
+
+      }
 
     console.log("balance", updatedPreviousBalance);
 
