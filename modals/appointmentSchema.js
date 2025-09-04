@@ -15,7 +15,7 @@ var appointmentSchema = new Schema(
     },
     paidAmount: {
       type: Number,
-      required: true,
+      default:0,
     },
     appointmentDate: {
       type: Date,

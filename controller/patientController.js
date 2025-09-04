@@ -305,44 +305,39 @@ console.log("patients....",patients)
     });
   }
 };
+
+
 const appointmentDetails = async (req, res) => {
   try {
-    const { patientId, totalAmount, paidAmount, appointmentDate, notes } =
-      req.body;
+    const { patientId, totalAmount, paidAmount, appointmentDate, notes } = req.body;
 
-    // Find patient’s latest appointment to get their previous balance
-    const lastAppointment = await Appointments.findOne({ patientId }).sort({
-      appointmentDate: -1,
-      createdAt: -1,
-    });
-
-    const prevBalance = lastAppointment?.previousBalance || 0;
-
-    // Parse amounts safely
+    // Create new appointment
     const total = parseFloat(totalAmount) || 0;
     const paid = parseFloat(paidAmount) || 0;
 
-    // New previous balance calculation
-    let updatedPreviousBalance =
-      Number(prevBalance || 0) + Number(total || 0) - Number(paid || 0);
-
-      if(updatedPreviousBalance < 0){
-        updatedPreviousBalance = 0
-
-      }
-
-    const newAppointment = await Appointments.create({
+    await Appointments.create({
       patientId,
       totalAmount: total,
       paidAmount: paid,
-      appointmentDate,
+      appointmentDate: new Date(appointmentDate),
       notes,
-      previousBalance: updatedPreviousBalance,
+      previousBalance: 0, // temporary, will fix in recalculation
     });
 
+    // 🔄 Recalculate ALL appointments for this patient in correct order
+    const allAppointments = await Appointments.find({ patientId }).sort({ appointmentDate: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    for (const appt of allAppointments) {
+      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+      if (runningBalance < 0) runningBalance = 0;
+
+      appt.previousBalance = runningBalance;
+      await appt.save();
+    }
+
     return res.status(201).json({
-      msg: "Appointment created successfully",
-      data: newAppointment,
+      msg: "Appointment created & balances updated successfully",
     });
   } catch (error) {
     console.error("Error creating appointment:", error);
@@ -352,6 +347,7 @@ const appointmentDetails = async (req, res) => {
     });
   }
 };
+
 
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
@@ -368,26 +364,31 @@ const updateAppointmentDetails = async (req, res) => {
     const paid = parseFloat(paidAmount) || 0;
 
     // Calculate updated previousBalance
-    let updatedPreviousBalance =
-      (existingAppointment.previousBalance || 0) + (total || 0) - paid;
-      if(updatedPreviousBalance < 0){
-        updatedPreviousBalance = 0
-
-      }
-
-    console.log("balance", updatedPreviousBalance);
-
+    
     const updatedAppointment = await Appointments.findByIdAndUpdate(
       id,
       {
         totalAmount: total,
         paidAmount: paid,
         appointmentDate,
-        previousBalance: updatedPreviousBalance,
+        previousBalance: 0,
         notes,
       },
       { new: true }
     );
+
+    const allAppointments = await Appointments.find({
+      patientId: existingAppointment.patientId,
+    }).sort({ appointmentDate: 1, createdAt: 1 });
+
+    let runningBalance = 0;
+    for (const appt of allAppointments) {
+      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+      if (runningBalance < 0) runningBalance = 0;
+
+      appt.previousBalance = runningBalance;
+      await appt.save();
+    }
 
     return res.status(200).json({
       msg: "Patient appointment details updated successfully",
