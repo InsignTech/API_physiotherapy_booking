@@ -464,34 +464,47 @@ const deleteAppointment = async (req, res) => {
     if (!appointmentDetails) {
       return res.status(404).json({ msg: "no valid records found" });
     }
+
+    // Log the deletion
     await logDetails.create({
       appointmentId: id,
       patientId: appointmentDetails.patientId,
       totalAmount: appointmentDetails.totalAmount,
       paidAmount: appointmentDetails.paidAmount,
       previousAmount: appointmentDetails.previousBalance,
-      appointmnetDate: appointmentDetails.appointmentDate,
+      appointmentDate: appointmentDetails.appointmentDate,
       action: "delete",
     });
 
+    // Delete the appointment
     await Appointments.deleteOne({ _id: id });
+
+    // Recalculate all remaining appointments for this patient
     const allAppointments = await Appointments.find({
       patientId: appointmentDetails.patientId,
     }).sort({ appointmentDate: 1, createdAt: 1 });
+
     let runningBalance = 0;
     for (const appt of allAppointments) {
-      runningBalance =
-        runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
-      if (runningBalance < 0) runningBalance = 0;
-      appt.previousBalance = runningBalance;
+      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+
+      // Always absolute for display
+      appt.previousBalance = Math.abs(runningBalance);
+      appt.displayBalance = `+${Math.abs(runningBalance)}`;
+
+      // Flag recent paid-only cases if needed
+      appt.isRecentPaidOnly = appt.paidAmount > 0 && appt.totalAmount === 0;
+
       await appt.save();
     }
 
-    return res.status(200).json({ msg: "appointment deleted successfully" });
+    return res.status(200).json({ msg: "Appointment deleted and balances updated successfully" });
   } catch (error) {
-    console.error("error during fetching appointment", error);
+    console.error("Error deleting appointment:", error);
+    res.status(500).json({ msg: "Server error" });
   }
 };
+
 
 const getAllAppointment = async (req, res) => {
   const { id } = req.params;
