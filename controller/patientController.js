@@ -309,9 +309,14 @@ const searchPatients = async (req, res) => {
 
 const appointmentDetails = async (req, res) => {
   try {
-    const { patientId, totalAmount, paidAmount, appointmentDate,appointmentTime, notes } = req.body;
-    console.log(req.body);
-    
+    const {
+      patientId,
+      totalAmount,
+      paidAmount,
+      appointmentDate,
+      appointmentTime,
+      notes,
+    } = req.body;
 
     const total = parseFloat(totalAmount) || 0;
     const paid = parseFloat(paidAmount) || 0;
@@ -334,20 +339,17 @@ const appointmentDetails = async (req, res) => {
     });
 
     let runningBalance = 0;
-    for (const appt of allAppointments) {
-      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
 
-      // Keep signed value
+    for (const appt of allAppointments) {
+      // Calculate the new running balance
+      runningBalance =
+        runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+
+      // Store absolute value as previousBalance
       appt.previousBalance = runningBalance;
 
-      // Display field
-      const abs = Math.abs(runningBalance);
-      appt.displayText =
-        appt.totalAmount === 0 && appt.paidAmount > 0
-          ? `+ ₹${abs}`
-          : `₹${abs}`;
-      appt.color =
-        appt.totalAmount === 0 && appt.paidAmount > 0 ? "green" : "orange";
+      // Optional: displayBalance same as previousBalance if you want
+      appt.displayBalance = Math.abs(runningBalance);
 
       await appt.save();
     }
@@ -366,14 +368,16 @@ const appointmentDetails = async (req, res) => {
     res.status(201).json({ msg: "Appointment created & balances updated" });
   } catch (error) {
     console.error("Error creating appointment:", error);
-    res.status(400).json({ msg: "Error creating appointment", error: error.message });
+    res
+      .status(400)
+      .json({ msg: "Error creating appointment", error: error.message });
   }
 };
 
-
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
-  const { totalAmount, paidAmount, appointmentDate,appointmentTime, notes } = req.body;
+  const { totalAmount, paidAmount, appointmentDate, appointmentTime, notes } =
+    req.body;
 
   try {
     const existingAppointment = await Appointments.findById(id);
@@ -386,7 +390,13 @@ const updateAppointmentDetails = async (req, res) => {
 
     await Appointments.findByIdAndUpdate(
       id,
-      { totalAmount: total, paidAmount: paid, appointmentDate,appointmentTime, notes },
+      {
+        totalAmount: total,
+        paidAmount: paid,
+        appointmentDate,
+        appointmentTime,
+        notes,
+      },
       { new: true }
     );
 
@@ -399,21 +409,15 @@ const updateAppointmentDetails = async (req, res) => {
     let updatedAppointment = null;
 
     for (const appt of allAppointments) {
-      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+      // Calculate the new running balance
+      runningBalance =
+        runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
 
+      // Store absolute value as previousBalance
       appt.previousBalance = runningBalance;
 
-      const abs = Math.abs(runningBalance);
-      appt.displayText =
-        appt.totalAmount === 0 && appt.paidAmount > 0
-          ? `+ ₹${abs}`
-          : `₹${abs}`;
-      appt.color =
-        appt.totalAmount === 0 && appt.paidAmount > 0 ? "green" : "orange";
-
-      if (appt._id.toString() === id) {
-        updatedAppointment = appt;
-      }
+      // Optional: displayBalance same as previousBalance if you want
+      appt.displayBalance = Math.abs(runningBalance);
 
       await appt.save();
     }
@@ -435,7 +439,9 @@ const updateAppointmentDetails = async (req, res) => {
     });
   } catch (error) {
     console.error("Error updating appointment:", error);
-    res.status(400).json({ msg: "Error updating appointment", error: error.message });
+    res
+      .status(400)
+      .json({ msg: "Error updating appointment", error: error.message });
   }
 };
 
@@ -465,18 +471,17 @@ const deleteAppointment = async (req, res) => {
     }).sort({ appointmentDate: 1, createdAt: 1 });
 
     let runningBalance = 0;
-    for (const appt of allAppointments) {
-      runningBalance = runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
 
+    for (const appt of allAppointments) {
+      // Calculate the new running balance
+      runningBalance =
+        runningBalance + (appt.totalAmount || 0) - (appt.paidAmount || 0);
+
+      // Store absolute value as previousBalance
       appt.previousBalance = runningBalance;
 
-      const abs = Math.abs(runningBalance);
-      appt.displayText =
-        appt.totalAmount === 0 && appt.paidAmount > 0
-          ? `+ ₹${abs}`
-          : `₹${abs}`;
-      appt.color =
-        appt.totalAmount === 0 && appt.paidAmount > 0 ? "green" : "orange";
+      // Optional: displayBalance same as previousBalance if you want
+      appt.displayBalance = Math.abs(runningBalance);
 
       await appt.save();
     }
@@ -487,7 +492,6 @@ const deleteAppointment = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
-
 
 const getAllAppointment = async (req, res) => {
   const { id } = req.params;
