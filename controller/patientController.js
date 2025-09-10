@@ -309,7 +309,9 @@ const searchPatients = async (req, res) => {
 
 const appointmentDetails = async (req, res) => {
   try {
-    const { patientId, totalAmount, paidAmount, appointmentDate, notes } = req.body;
+    const { patientId, totalAmount, paidAmount, appointmentDate,appointmentTime, notes } = req.body;
+    console.log(req.body);
+    
 
     const total = parseFloat(totalAmount) || 0;
     const paid = parseFloat(paidAmount) || 0;
@@ -320,6 +322,7 @@ const appointmentDetails = async (req, res) => {
       totalAmount: total,
       paidAmount: paid,
       appointmentDate: new Date(appointmentDate),
+      appointmentTime,
       notes,
       previousBalance: 0,
     });
@@ -356,6 +359,7 @@ const appointmentDetails = async (req, res) => {
       paidAmount: paid,
       previousAmount: runningBalance,
       appointmentDate,
+      appointmentTime,
       action: "add",
     });
 
@@ -369,7 +373,7 @@ const appointmentDetails = async (req, res) => {
 
 const updateAppointmentDetails = async (req, res) => {
   const { id } = req.params;
-  const { totalAmount, paidAmount, appointmentDate, notes } = req.body;
+  const { totalAmount, paidAmount, appointmentDate,appointmentTime, notes } = req.body;
 
   try {
     const existingAppointment = await Appointments.findById(id);
@@ -382,7 +386,7 @@ const updateAppointmentDetails = async (req, res) => {
 
     await Appointments.findByIdAndUpdate(
       id,
-      { totalAmount: total, paidAmount: paid, appointmentDate, notes },
+      { totalAmount: total, paidAmount: paid, appointmentDate,appointmentTime, notes },
       { new: true }
     );
 

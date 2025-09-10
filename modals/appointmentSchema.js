@@ -11,23 +11,27 @@ var appointmentSchema = new Schema(
     },
     totalAmount: {
       type: Number,
-      default:0
+      default: 0,
     },
     paidAmount: {
       type: Number,
-      default:0,
+      default: 0,
     },
     appointmentDate: {
       type: Date,
       default: Date.now,
     },
+    appointmentTime: {
+      type: String,
+      default: "",
+    },
     notes: {
       type: String,
     },
-    previousBalance:{
-      type:Number,
-      default:0
-    }
+    previousBalance: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

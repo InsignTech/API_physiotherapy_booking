@@ -24,12 +24,16 @@ var logSchema = new Schema(
     },
     previousAmount: {
       type: Number,
-      ref: "Appoinments",
+      ref: "Appointments",
       default: 0,
     },
     appointmentDate: {
       type: Date,
-      ref: "Appointmnets",
+      ref: "Appointments",
+    },
+    appointmentTime: {
+      type: String,
+      ref: "Appointments",
     },
     action: {
       type: String,
