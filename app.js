@@ -3,28 +3,12 @@ import "dotenv/config";
 import connectDB from "./config/connection.js"
 import userRoutes from './routes/userRoutes.js'
 import patientRoutes from './routes/patientRoutes.js'
-import cors from "cors";
 import jwt from 'jsonwebtoken'; 
 
 const app = express();
 
 
-const corsOptions = {
- origin: [
-    "http://localhost:5173",
-    "https://physio.insigntechsolutions.com"
-  ],
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  credentials: true,
-};
 
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Origin", "Content-Type", "Accept", "Authorization"],
-  })
-);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
