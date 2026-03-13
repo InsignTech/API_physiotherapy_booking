@@ -13,7 +13,8 @@ app.use(
   cors({
      origin: [
       "http://localhost:5173",
-      "https://physio.insigntechsolutions.com"
+      "https://physio.insigntechsolutions.com",
+      "https://willowy-cascaron-54c467.netlify.app"
     ],
     credentials: true,
   })
