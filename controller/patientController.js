@@ -107,7 +107,7 @@ const getAllPatients = async (req, res) => {
       .skip((page - 1) * limit)
       .limit(limit)
       .lean();
-    console.log("previous", patientDetails);
+  
 
     const enhancedPatients = await Promise.all(
       patientDetails.map(async (patient) => {
@@ -120,7 +120,7 @@ const getAllPatients = async (req, res) => {
         const latestAppointment = await Appointments.findOne({
           patientId: patient._id,
         }).sort({ appointmentDate: -1, createdAt: -1 });
-        console.log(patient);
+        
         return {
           ...patient,
           totalAppointments,
@@ -229,7 +229,7 @@ const getAppointment = async (req, res) => {
       )
       .lean();
 
-    console.log("appointmnets", appointments);
+    
 
     // Convert UTC to IST (+5:30)
     const IST_OFFSET = 5.5 * 60 * 60 * 1000;
@@ -292,7 +292,7 @@ const searchPatients = async (req, res) => {
       });
       patient.totalAppointments = totalAppointments;
     }
-    console.log("patients....", patients);
+   
     res.status(200).json({
       success: true,
       message: "Patients retrieved successfully",

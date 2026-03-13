@@ -4,10 +4,20 @@ import connectDB from "./config/connection.js"
 import userRoutes from './routes/userRoutes.js'
 import patientRoutes from './routes/patientRoutes.js'
 import jwt from 'jsonwebtoken'; 
+import cors from "cors";
 
 const app = express();
 
 
+app.use(
+  cors({
+     origin: [
+      "http://localhost:5173",
+      "https://physio.insigntechsolutions.com"
+    ],
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
